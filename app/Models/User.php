@@ -9,8 +9,6 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory;
     use Notifiable;
 
     /**
@@ -23,6 +21,8 @@ class User extends Authenticatable
         'last_name',
         'email',
         'password',
+        'client_id',
+        'role_id',
     ];
 
     /**
@@ -46,5 +46,20 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function properties()
+    {
+        return $this->hasMany(Property::class);
     }
 }

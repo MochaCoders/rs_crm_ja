@@ -39,7 +39,7 @@ function handleImageError() {
         >
             <div class="relative w-full max-w-2xl px-6 lg:max-w-7xl">
                 <header
-                    class="grid grid-cols-2 items-center gap-2 py-10 lg:grid-cols-3"
+                    class="grid items-center grid-cols-2 gap-2 py-10 lg:grid-cols-3"
                 >
                     <div class="flex lg:col-start-2 lg:justify-center">
                         <svg
@@ -54,10 +54,10 @@ function handleImageError() {
                             />
                         </svg>
                     </div>
-                    <nav v-if="canLogin" class="-mx-3 flex flex-1 justify-end">
+                    <nav v-if="canLogin" class="flex justify-end flex-1 -mx-3">
                         <Link
                             v-if="$page.props.auth.user"
-                            :href="route('dashboard')"
+                            :href="route('dashboard.index')"
                             class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
                         >
                             Dashboard
@@ -91,7 +91,7 @@ function handleImageError() {
                         >
                             <div
                                 id="screenshot-container"
-                                class="relative flex w-full flex-1 items-stretch"
+                                class="relative flex items-stretch flex-1 w-full"
                             >
                                 <img
                                     src="https://laravel.com/assets/img/welcome/docs-light.svg"
@@ -376,7 +376,7 @@ function handleImageError() {
                 </main>
 
                 <footer
-                    class="py-16 text-center text-sm text-black dark:text-white/70"
+                    class="py-16 text-sm text-center text-black dark:text-white/70"
                 >
                     Laravel v{{ laravelVersion }} (PHP v{{ phpVersion }})
                 </footer>

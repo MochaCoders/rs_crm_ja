@@ -22,7 +22,7 @@ const showingNavigationDropdown = ref(false);
                         <div class="flex">
                             <!-- Logo -->
                             <div class="flex items-center shrink-0">
-                                <Link :href="route('dashboard')">
+                                <Link :href="route('dashboard.index')">
                                     <ApplicationLogo
                                         class="block w-auto text-gray-800 fill-current h-9"
                                     />
@@ -34,14 +34,14 @@ const showingNavigationDropdown = ref(false);
                                 class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
+                                    :href="route('dashboard.index')"
+                                    :active="route().current('dashboard.index')"
                                 >
                                     Dashboard
                                 </NavLink>
                                 <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
+                                    :href="route('properties.index')"
+                                    :active="route().current('properties.index')"
                                 >
                                     Properties
                                 </NavLink>
@@ -147,8 +147,8 @@ const showingNavigationDropdown = ref(false);
                 >
                     <div class="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
+                            :href="route('dashboard.index')"
+                            :active="route().current('dashboard.index')"
                         >
                             Dashboard
                         </ResponsiveNavLink>
