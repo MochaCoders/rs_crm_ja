@@ -20,7 +20,9 @@ const selectedProspectId = ref(null)
 
 const props = defineProps({
   property: Object,
-  prospects: Array
+  prospects: Array,
+  has_form: Boolean,
+  has_entries: Boolean
 })
 
 const form = useForm({
@@ -180,6 +182,27 @@ function reopenUnit() {
     </div>
     </form>
 
+    <div class="mt-6">
+      <h1>Lead Management</h1>
+      <p>Manage lead qualification for {{ form.title }}</p>
+      <PrimaryButton
+        class="mt-2 bg-teal-600 hover:bg-teal-700" @click="router.get(route('lead-questions.index', { property_id: props.property.data.id }))">
+        <span>
+          <span v-if="has_form">Update</span><span v-else>Add</span>  Lead Form
+        </span>
+      </PrimaryButton>
+    </div>
+    <div class="mt-6" v-if="has_entries">
+      <h1>Entries</h1>
+      <p>View entries to your lead form</p>
+      <PrimaryButton
+        class="mt-2 bg-teal-600 hover:bg-teal-700" @click="router.get(route('lead-form.submissions', { property: props.property.data }))">
+View Entries
+      </PrimaryButton>
+       </div>
+       <div class="mt-6" v-else>
+        <h2 class="text-gray-400">No Entries have been submitted for this form.</h2>
+       </div>
     <div class="flex items-center justify-between mt-6">
       <h1>Manage Units</h1>
       <!-- Right-aligned upload units button -->
@@ -188,7 +211,7 @@ function reopenUnit() {
       </PrimaryButton>
     </div>
 <!-- Units Table -->
-<div class="mt-6 overflow-x-auto">
+<div class="mt-6 overflow-x-auto ">
   <!-- Hidden file input -->
   <input
       type="file"

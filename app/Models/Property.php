@@ -27,4 +27,9 @@ class Property extends Model
     {
         return $this->hasMany(Unit::class);
     }
+
+    public function leadQuestions()
+    {
+        return $this->hasMany(LeadQuestion::class);
+    }
 }

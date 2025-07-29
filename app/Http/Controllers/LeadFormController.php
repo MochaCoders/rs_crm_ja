@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Inertia\Inertia;
+use App\Models\Property;
+use App\Models\Submission;
+use Illuminate\Support\Str;
+use App\Models\LeadQuestion;
+use App\Models\LeadResponse;
+use App\Models\ProspectFile;
+use Illuminate\Http\Request;
+use App\Models\LeadQuestionPreference;
+
+class LeadFormController extends Controller
+{
+    public function index(Property $property)
+    {
+        return Inertia::render('LeadQuestions/Index', [
+            'property' => $property,
+            'questions' => $property->leadQuestions, // Assuming a relation exists
+        ]);
+    }
+    public function show(Property $property)
+    {
+        $questions = LeadQuestion::where('property_id', $property->id)->get();
+
+        return Inertia::render('LeadForm', [
+            'questions' => $questions,
+            'property' => $property,
+            'property_id' => $property->id,
+        ]);
+    }
+
+    public function submit(Request $request)
+    {
+
+        $request->validate([
+            'property_id' => 'required|exists:properties,id',
+            'responses' => 'required|array',
+            'attachments' => 'sometimes|array',
+            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:20480',
+        ]);
+
+        $submission = Submission::create([
+            'uuid' => Str::uuid(),
+            'property_id' => $request->property_id, // optional
+        ]);
+
+
+        // Save question responses
+        foreach ($request->input('responses', []) as $questionId => $response) {
+            LeadResponse::create([
+                'submission_id' => $submission->id,
+                'lead_question_id' => $questionId,
+                'response' => is_array($response) ? json_encode($response) : $response,
+            ]);
+        }
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    // Store in 'public/prospect_uploads'
+                    $path = $file->store('prospect_uploads', 'public');
+
+                    ProspectFile::create([
+                        'submission_id' => $submission->id,
+                        'filename' => $file->getClientOriginalName(),
+                        'path' => $path, // relative path: 'prospect_uploads/filename.ext'
+                    ]);
+                }
+            }
+        }
+
+
+        return redirect()->route('lead.form', ['property' => $request->input('property_id')])
+            ->with('success', 'Thank you for your submission!');
+    }
+
+    /**
+     * Save or update the selected column‐headings for a property's submissions table.
+     */
+    public function updateHeadings(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'selected_headings'   => 'required|array',
+            'selected_headings.*' => 'integer|exists:lead_questions,id',
+        ]);
+
+        LeadQuestionPreference::updateOrCreate(
+            ['property_id' => $property->id],
+            ['selected_headings' => $data['selected_headings']]
+        );
+
+        return back()->with('success', 'Table columns updated.');
+    }
+
+    /**
+         * Render the submissions page, injecting any saved preferences.
+         */
+    public function submissionsPage(Property $property)
+    {
+        // 1) Eager‑load any property relations you need
+        $property->load(['units.prospect']);
+
+        // 2) Fetch all lead questions for this property
+        $headings = LeadQuestion::where('property_id', $property->id)
+            ->get(['id', 'question'])
+            ->map(fn ($q) => [
+                'id'       => $q->id,
+                'question' => $q->question,
+            ]);
+
+        // 3) Build a map of question_id → question_text (if needed later)
+        $questionMap = $headings->pluck('question', 'id');
+
+        // 4) Fetch + reshape submissions
+        $submissions = Submission::with('responses')
+            ->where('property_id', $property->id)
+            ->get()
+            ->map(fn ($submission) => [
+                'id'           => $submission->id,
+                'submitted_at' => $submission->created_at->toDateString(),
+                'answers'      => $submission->responses
+                    ->mapWithKeys(fn ($r) => [
+                        $r->lead_question_id => $r->response,
+                    ]),
+            ]);
+
+        // 5) Load any saved preferences
+        $preference = LeadQuestionPreference::firstWhere('property_id', $property->id);
+
+        // 6) Determine which headings to show by default
+        $selected = $preference
+            ? $preference->selected_headings        // from JSON cast
+            : $headings->pluck('id')->all();        // default to all question IDs
+
+        // 7) Render Inertia with everything
+        return Inertia::render('LeadQuestions/Submissions', [
+            'property'         => $property,
+            'headings'         => $headings,
+            'submissions'      => $submissions,
+            'selectedHeadings' => $selected,
+        ]);
+    }
+
+}

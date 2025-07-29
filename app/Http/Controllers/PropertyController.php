@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Property;
 use App\Models\Prospect;
+use App\Models\Submission;
+use App\Models\LeadQuestion;
+use App\Models\LeadResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\PropertyResource;
@@ -39,13 +42,25 @@ class PropertyController extends Controller
     public function show(Property $property)
     {
 
+        // Eager‑load units → prospect
         $property->load(['units.prospect']);
 
+        // Load basic prospect list
         $prospects = Prospect::select('id', 'name', 'email', 'telephone')->get();
+
+        // Check if any Form exists for this property
+        $hasForm = LeadQuestion::where('property_id', $property->id)->exists();
+
+        // Check if any Submission exists for this property that has at least one response
+        $hasEntries = Submission::where('property_id', $property->id)
+            ->whereHas('responses')
+            ->exists();
 
         return Inertia::render('Properties/Edit', [
                 'property'   => new PropertyResource($property),
                 'prospects'  => $prospects,
+                'has_form'  => $hasForm,
+                'has_entries' => $hasEntries,
             ]);
 
     }
