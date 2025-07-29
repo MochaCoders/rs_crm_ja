@@ -1,0 +1,29 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class () extends Migration {
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+
+        Schema::create('submissions', function (Blueprint $table) {
+            $table->id();
+            $table->uuid('uuid')->unique()->index(); // To be used as the public submission_id
+            $table->unsignedBigInteger('property_id')->nullable(); // If tied to a property
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('submissions');
+    }
+};
