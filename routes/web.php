@@ -29,6 +29,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/properties/{property}/qualification-rules', [QualificationRuleController::class, 'store'])->name('qualification-rules.store');
     Route::delete('/properties/{property}/qualification-rules/{lead_question}', [QualificationRuleController::class, 'destroy'])->name('qualification-rules.destroy');
 
+    Route::post('/properties/{property}/qualification-automation', [AutomationController::class, 'store'])->name('qualification-automation.store');
+    Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
+
 });
 
 Route::post('/units/upload', [UnitController::class, 'upload'])->name('units.upload');
