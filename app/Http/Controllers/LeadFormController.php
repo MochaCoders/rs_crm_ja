@@ -10,6 +10,7 @@ use App\Models\LeadQuestion;
 use App\Models\LeadResponse;
 use App\Models\ProspectFile;
 use Illuminate\Http\Request;
+use App\Models\QualificationRule;
 use App\Models\LeadQuestionPreference;
 
 class LeadFormController extends Controller
@@ -100,42 +101,48 @@ class LeadFormController extends Controller
          */
     public function submissionsPage(Property $property)
     {
-        // 1) Eager‑load any property relations you need
+        // 1) Eager‑load property relations
         $property->load(['units.prospect']);
 
-        // 2) Fetch all lead questions for this property
+        // 2) Load your column‐heading questions
         $headings = LeadQuestion::where('property_id', $property->id)
             ->get(['id', 'question'])
-            ->map(fn ($q) => [
-                'id'       => $q->id,
-                'question' => $q->question,
-            ]);
+            ->map(fn ($q) => ['id' => $q->id, 'question' => $q->question]);
 
-        // 3) Build a map of question_id → question_text (if needed later)
-        $questionMap = $headings->pluck('question', 'id');
+        // 3) Load all qualification rules for this property
+        $rules = QualificationRule::where('property_id', $property->id)->get();
 
-        // 4) Fetch + reshape submissions
+        // 4) Fetch + reshape submissions, marking each qualified or not
         $submissions = Submission::with('responses')
             ->where('property_id', $property->id)
             ->get()
-            ->map(fn ($submission) => [
-                'id'           => $submission->id,
-                'submitted_at' => $submission->created_at->toDateString(),
-                'answers'      => $submission->responses
-                    ->mapWithKeys(fn ($r) => [
-                        $r->lead_question_id => $r->response,
-                    ]),
-            ]);
+            ->map(function ($sub) use ($rules) {
+                // flatten answers into [ question_id => response ]
+                $answers = $sub->responses
+                    ->mapWithKeys(fn ($r) => [$r->lead_question_id => $r->response]);
 
-        // 5) Load any saved preferences
+                // check every rule
+                $qualified = $rules->every(
+                    fn ($rule) =>
+                    isset($answers[$rule->lead_question_id]) &&
+                    $answers[$rule->lead_question_id] === $rule->answer
+                );
+
+                return [
+                    'id'           => $sub->id,
+                    'submitted_at' => $sub->created_at->toDateString(),
+                    'answers'      => $answers,
+                    'qualified'    => $qualified,
+                ];
+            });
+
+        // 5) Load saved column prefs
         $preference = LeadQuestionPreference::firstWhere('property_id', $property->id);
+        $selected   = $preference
+            ? $preference->selected_headings
+            : $headings->pluck('id')->all();
 
-        // 6) Determine which headings to show by default
-        $selected = $preference
-            ? $preference->selected_headings        // from JSON cast
-            : $headings->pluck('id')->all();        // default to all question IDs
-
-        // 7) Render Inertia with everything
+        // 6) Render with all submissions + their qualified status
         return Inertia::render('LeadQuestions/Submissions', [
             'property'         => $property,
             'headings'         => $headings,

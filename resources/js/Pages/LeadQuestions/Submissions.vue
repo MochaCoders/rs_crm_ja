@@ -94,6 +94,7 @@ function closeViewModal() {
               <thead class="text-sm text-left text-gray-600 uppercase bg-gray-100">
                 <tr>
                   <th class="px-4 py-2">Date</th>
+                  <th class="px-4 py-2">Qualified</th>
                   <th v-for="col in selectedCols" :key="col.id" class="px-4 py-2">
                     {{ col.question }}
                   </th>
@@ -104,9 +105,13 @@ function closeViewModal() {
                 <tr
                   v-for="sub in props.submissions"
                   :key="sub.id"
-                  class="border-t hover:bg-gray-50"
+                  :class="sub.qualified ? 'bg-green-50' : 'bg-red-50'"
+  class="border-t hover:bg-gray-100"
                 >
                   <td class="px-4 py-2">{{ sub.submitted_at }}</td>
+                  <td class="px-4 py-2 text-sm font-medium">
+                    {{ sub.qualified ? 'Yes' : 'No' }}
+                  </td>
                   <td
                     v-for="col in selectedCols"
                     :key="col.id"
