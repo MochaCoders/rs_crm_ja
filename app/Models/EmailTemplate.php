@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class EmailTemplate extends Model
 {
     protected $fillable = [
+            'template_owner_id',
             'name',
             'subject',
             'body',

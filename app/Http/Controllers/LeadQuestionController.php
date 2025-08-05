@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use Inertia\Inertia;
 use App\Models\Property;
+use App\Models\LeadAction;
 use App\Models\LeadQuestion;
 use Illuminate\Http\Request;
+use App\Models\EmailTemplate;
 use App\Models\QualificationRule;
 
 class LeadQuestionController extends Controller
@@ -18,15 +20,31 @@ class LeadQuestionController extends Controller
         // all questions for this property
         $questions = LeadQuestion::where('property_id', $propertyId)->get();
 
-        // existing rules
+        // existing qualification rules
         $rules = QualificationRule::where('property_id', $propertyId)
-            ->get(['lead_question_id', 'answer']);
+                    ->get(['lead_question_id', 'answer']);
+
+        // load your email templates (adjust the where clause as needed)
+        // e.g. only templates belonging to the current user or this property
+        $emailTemplates = EmailTemplate::where('template_owner_id', auth()->id())
+                            ->orderBy('name')
+                            ->get(['id', 'name']);
+
+        $actionOptions = [
+                    ['name' => 'Remind Me', 'value' => 'remind_me'],
+                    ['name' => 'Email', 'value' => 'email'],
+                ];
+
+        $actions = LeadAction::where('property_id', $propertyId)->get();
 
         return Inertia::render('LeadQuestions/Index', [
-            'questions'   => $questions,
-            'property_id' => $propertyId,
-            'property'    => $property,
-            'rules'       => $rules,
+            'questions'      => $questions,
+            'property_id'    => $propertyId,
+            'property'       => $property,
+            'rules'          => $rules,
+            'actions'        => $actions,
+            'emailTemplates' => $emailTemplates,
+            'actionOptions'  => $actionOptions
         ]);
     }
 

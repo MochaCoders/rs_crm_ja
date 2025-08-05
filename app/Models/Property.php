@@ -32,4 +32,9 @@ class Property extends Model
     {
         return $this->hasMany(LeadQuestion::class);
     }
+
+    public function actions()
+    {
+        return $this->hasMany(LeadAction::class);
+    }
 }

@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::create('email_templates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('template_owner_id')->constrained('users')->onDelete('cascade'); // agent
             $table->string('name')->unique();
             $table->string('subject');
             $table->text('body');

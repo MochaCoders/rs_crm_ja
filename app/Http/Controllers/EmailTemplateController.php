@@ -10,11 +10,29 @@ class EmailTemplateController extends Controller
 {
     public function index()
     {
-        $templates = EmailTemplate::orderBy('name')->get();
+        // 1) Load templates
+        $templates = EmailTemplate::where('template_owner_id', auth()->id())
+                        ->orderBy('name')
+                        ->get(['id', 'name', 'subject', 'body']);
+
+        // 2) Define your available variables
+        //    You could also fetch these from a DB table if you prefer.
+        $variables = [
+            ['label' => 'Customer Email',      'placeholder' => '{{email}}'],
+            ['label' => 'Customer Name',       'placeholder' => '{{name}}'],
+            ['label' => 'Property Name',      'placeholder' => '{{property_name}}'],
+            ['label' => 'My Name',      'placeholder' => '{{my_name}}'],
+            ['label' => 'My Email',      'placeholder' => '{{my_email}}'],
+            ['label' => 'My Telephone',      'placeholder' => '{{my_telephone}}'],
+        ];
+
+        // 3) Render Inertia view with both arrays
         return Inertia::render('EmailTemplates/Index', [
             'templates' => $templates,
+            'variables' => $variables,
         ]);
     }
+
 
     public function create()
     {
@@ -29,10 +47,14 @@ class EmailTemplateController extends Controller
             'body'    => 'required|string',
         ]);
 
+        // Associate the template with the current user
+        $data['template_owner_id'] = auth()->id();
+
         EmailTemplate::create($data);
 
-        return redirect()->route('email-templates.index')
-                         ->with('success', 'Email template created.');
+        return redirect()
+            ->route('email-templates.index')
+            ->with('success', 'Email template created.');
     }
 
     public function edit(EmailTemplate $emailTemplate)
