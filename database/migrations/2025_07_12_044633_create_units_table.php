@@ -19,7 +19,6 @@ return new class () extends Migration {
             $table->string('currency')->default('JMD');
             $table->string('type')->default('apartment');
             $table->string('status')->default('available');
-            $table->foreignId('purchaser_id')->nullable()->constrained('prospects')->nullOnDelete();
             $table->timestamps();
         });
     }

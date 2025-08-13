@@ -27,15 +27,14 @@ class UnitController extends Controller
 
     public function close(Request $request)
     {
-
         $request->validate([
             'unit_id' => 'required|exists:units,id',
-            'prospect_id' => 'required|exists:prospects,id',
+            'submission_id' => 'required|exists:submissions,id'
         ]);
 
         $unit = Unit::find($request->unit_id);
+        $unit->submission_id = $request->submission_id;
         $unit->status = 'Sold';
-        $unit->purchaser_id = $request->prospect_id; // Ensure `purchaser_id` exists in your `units` table
         $unit->save();
 
         return back()->with('success', 'Unit closed successfully.');
@@ -44,7 +43,7 @@ class UnitController extends Controller
     public function reopen(Request $request)
     {
         $unit = Unit::findOrFail($request->unit_id);
-        $unit->purchaser_id = null;
+        $unit->submission_id = null;
         $unit->status = 'Available'; // Optional: reset status
         $unit->save();
 

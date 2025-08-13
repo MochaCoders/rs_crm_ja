@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Prospect;
+use App\Models\Submission;
 use Illuminate\Database\Eloquent\Model;
 
 class Unit extends Model
@@ -15,7 +15,7 @@ class Unit extends Model
         'currency',
         'type',
         'status',
-        'purchaser_id'
+        'submission_id'
     ];
 
     public function property()
@@ -23,9 +23,9 @@ class Unit extends Model
         return $this->belongsTo(Property::class);
     }
 
-    public function prospect()
+    public function submission()
     {
-        return $this->belongsTo(Prospect::class, 'purchaser_id');
+        return $this->belongsTo(Submission::class, 'submission_id');
     }
 
 }

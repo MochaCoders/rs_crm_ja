@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Models\Property;
 use App\Models\LeadQuestion;
 use Illuminate\Http\Request;
+use App\Models\EmailTemplate;
 use App\Models\QualificationRule;
 
 class LeadQuestionController extends Controller
@@ -22,11 +23,15 @@ class LeadQuestionController extends Controller
         $rules = QualificationRule::where('property_id', $propertyId)
             ->get(['lead_question_id', 'answer']);
 
+        // email templates
+        $templates = EmailTemplate::orderBy('name')->get(['id', 'name', 'subject', 'body']);
+
         return Inertia::render('LeadQuestions/Index', [
-            'questions'   => $questions,
-            'property_id' => $propertyId,
-            'property'    => $property,
-            'rules'       => $rules,
+            'questions'        => $questions,
+            'property_id'      => $propertyId,
+            'property'         => $property,
+            'rules'            => $rules,
+            'emailTemplates'   => $templates,
         ]);
     }
 

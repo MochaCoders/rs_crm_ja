@@ -8,7 +8,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\LeadFormController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AutomationController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\LeadQuestionController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\QualificationRuleController;
 
 Route::get('/', function () {
@@ -41,6 +44,7 @@ Route::delete('/units/{unit}', [UnitController::class, 'destroy'])->name('units.
 
 // Route::get('/properties/{property}/lead-questions', [LeadQuestionController::class, 'index'])->name('lead-questions.index');
 Route::get('/lead-questions', [LeadQuestionController::class, 'index'])->name('lead-questions.index');
+
 Route::post('/lead-questions', [LeadQuestionController::class, 'store'])->name('lead-questions.store');
 
 Route::get('/properties/{property}/submissions', [LeadFormController::class, 'submissionsPage'])->name('lead-form.submissions');
@@ -48,6 +52,12 @@ Route::get('/lead-form/{property}', [LeadFormController::class, 'show'])->name('
 Route::post('/lead-form', [LeadFormController::class, 'submit'])->name('lead.submit');
 
 Route::post('/submissions/{property}/headings', [LeadFormController::class, 'updateHeadings'])->name('submissions.updateHeadings');
+
+
+//Appointment
+Route::get('/appointment', [AppointmentController::class, 'index'])->name('appointment.index');
+Route::get('/appointments/create/{property}', [AppointmentController::class, 'create'])->name('appointments.create');
+Route::post('/appointments/store/{property}', [AppointmentController::class, 'store'])->name('appointments.store');
 
 
 require __DIR__.'/auth.php';
