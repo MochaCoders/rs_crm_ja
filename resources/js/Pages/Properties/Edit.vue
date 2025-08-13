@@ -16,7 +16,6 @@ const isCloseModalOpen = ref(false)
 const isReopenModalOpen = ref(false)
 const unitToClose = ref(null)
 const unitToRepen = ref(null)
-const selectedProspectId = ref(null)
 
 const props = defineProps({
   property: Object,
@@ -95,17 +94,14 @@ function openCloseModal(unitId) {
 
 function closeCloseModal() {
   unitToClose.value = null
-  selectedProspectId.value = null
   isCloseModalOpen.value = false
 }
 
 // When prospect is selected for closing
 function selectProspect(prospectId) {
-  selectedProspectId.value = prospectId
-
   router.post(route('units.close'), {
     unit_id: unitToClose.value,
-    prospect_id: prospectId,
+    submission_id: prospectId,
   }, {
     onSuccess: () => {
       closeCloseModal()
@@ -134,6 +130,37 @@ function reopenUnit() {
       closeReopenModal()
     },
   })
+}
+
+// Turn a LeadResponse into "Question: Answer" pieces
+function responseLabel(resp) {
+  // If you eager-loaded: Submission::with('responses.question'), this will show the text
+  return resp?.question?.question ?? `Question #${resp.lead_question_id}`;
+}
+
+function responseValue(resp) {
+  // Handle common column names and array/json answers
+  const raw =
+    resp?.answer ??         // if your column is 'answer'
+    resp?.value ??          // or 'value'
+    resp?.response ??       // or 'response'
+    resp?.text ??           // or 'text'
+    '';
+
+  if (Array.isArray(raw)) return raw.join(', ');
+
+  if (typeof raw === 'string') {
+    // If checkboxes were stored as JSON strings like '["A","B"]'
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.join(', ');
+      if (parsed && typeof parsed === 'object') return Object.values(parsed).join(', ');
+    } catch (e) {
+      // not JSON — fall through
+    }
+  }
+
+  return String(raw ?? '');
 }
 </script>
 
@@ -248,7 +275,7 @@ View Entries
   >{{ unit.status }}</span>
 </td>
         <td class="px-4 py-2">
-          <PrimaryButton class="text-white bg-cyan-700" @click="openCloseModal(unit.id)" v-if="!unit.purchaser_id">Close</PrimaryButton>
+          <PrimaryButton class="text-white bg-cyan-700" @click="openCloseModal(unit.id)" v-if="!unit.submission_id">Close</PrimaryButton>
           <PrimaryButton class="text-white bg-amber-800" @click="openReopenModal(unit.id)" v-else>Reopen</PrimaryButton>
           <PrimaryButton class="ml-2 text-white bg-red-700" @click="openDeleteModal(unit.id)" v-if="!unit.purchaser_id">X</PrimaryButton>
         </td>
@@ -289,25 +316,35 @@ View Entries
       <table class="min-w-full text-sm text-left text-gray-700 border border-gray-200 rounded-lg">
         <thead class="text-xs text-gray-600 uppercase bg-gray-100">
           <tr>
-            <th class="px-4 py-2">Name</th>
-            <th class="px-4 py-2">Email</th>
-            <th class="px-4 py-2">Telephone</th>
+            <th class="px-4 py-2">Details</th>
             <th class="px-4 py-2">Action</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="prospect in prospects" :key="prospect.id" class="border-t">
-            <td class="px-4 py-2">{{ prospect.name }}</td>
-            <td class="px-4 py-2">{{ prospect.email }}</td>
-            <td class="px-4 py-2">{{ prospect.telephone }}</td>
+          <tr v-for="prospect in prospects" :key="prospect.id" class="align-top border-t">
             <td class="px-4 py-2">
-              <PrimaryButton class="text-white bg-green-600 hover:bg-green-700" @click="selectProspect(prospect.id)">
+              <ul class="space-y-1">
+                <li
+                  v-for="resp in prospect.responses || []"
+                  :key="resp.id"
+                >
+                  <span class="font-medium">{{ responseLabel(resp) }}:</span>
+                  <span> {{ responseValue(resp) }} </span>
+                </li>
+              </ul>
+            </td>
+            <td class="px-4 py-2">
+              <PrimaryButton
+                class="text-white bg-green-600 hover:bg-green-700"
+                @click="selectProspect(prospect.id)"
+              >
                 Select
               </PrimaryButton>
             </td>
           </tr>
-          <tr v-if="!prospects.length">
-            <td colspan="4" class="px-4 py-4 text-center text-gray-500">
+
+          <tr v-if="!prospects?.length">
+            <td colspan="2" class="px-4 py-4 text-center text-gray-500">
               No prospects found.
             </td>
           </tr>

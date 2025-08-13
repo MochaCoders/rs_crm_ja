@@ -29,7 +29,7 @@ class PropertyResource extends JsonResource
                     'currency' => $unit->currency,
                     'type' => $unit->type,
                     'status' => $unit->status,
-                    'purchaser_id' => $unit->purchaser_id,
+                    'submission_id' => $unit->submission_id,
                 ];
             }),
         ];

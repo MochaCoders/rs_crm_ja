@@ -101,8 +101,6 @@ class LeadFormController extends Controller
          */
     public function submissionsPage(Property $property)
     {
-        // 1) Eager‑load property relations
-        $property->load(['units.prospect']);
 
         // 2) Load your column‐heading questions
         $headings = LeadQuestion::where('property_id', $property->id)
