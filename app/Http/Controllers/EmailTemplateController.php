@@ -52,9 +52,10 @@ class EmailTemplateController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'    => 'required|string|unique:email_templates,name',
-            'subject' => 'required|string',
-            'body'    => 'required|string',
+            'property_id' => 'nullable|exists:properties,id',
+            'name'        => 'required|string|unique:email_templates,name',
+            'subject'     => 'required|string',
+            'body'        => 'required|string',
         ]);
 
         EmailTemplate::create($data);

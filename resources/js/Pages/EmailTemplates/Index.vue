@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { useForm, Head, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
@@ -39,8 +39,17 @@ const editingId   = ref(null)
 const editorContainer = ref(null)
 let quill = null
 
-function initQuill() {
+/**
+ * Always (re)initialize Quill on the current editorContainer.
+ * This avoids stale instances after the modal unmounts its content.
+ */
+function initQuill () {
   if (!editorContainer.value) return
+
+  // Clear container to ensure a clean mount surface
+  editorContainer.value.innerHTML = ''
+
+  // Create a fresh instance bound to the current DOM node
   quill = new Quill(editorContainer.value, {
     theme: 'snow',
     modules: {
@@ -63,6 +72,7 @@ function insertTokenIntoBody(token) {
   quill.insertText(index, toInsert)
   quill.setSelection(index + toInsert.length, 0)
 }
+
 /** Start create flow */
 function openCreate() {
   isEditing.value = false
@@ -71,8 +81,8 @@ function openCreate() {
   isModalOpen.value = true
 
   nextTick(() => {
-    if (!quill) initQuill()
-    else quill.setContents([])
+    initQuill()                 // <- always reinit
+    quill.clipboard.dangerouslyPasteHTML('') // empty body
   })
 }
 
@@ -80,29 +90,35 @@ function openCreate() {
 function openEdit(tpl) {
   isEditing.value = true
   editingId.value = tpl.id
-  form.fill({ name: tpl.name, subject: tpl.subject, body: tpl.body })
+
+  // CLEAR then ASSIGN fields
+  form.reset()
+  form.name    = tpl.name ?? ''
+  form.subject = tpl.subject ?? ''
+  form.body    = tpl.body ?? ''
+
   isModalOpen.value = true
 
   nextTick(() => {
-    if (!quill) initQuill()
-    quill.clipboard.dangerouslyPasteHTML(tpl.body || '')
+    initQuill()                                 // <- always reinit
+    quill.clipboard.dangerouslyPasteHTML(form.body || '')
   })
 }
 
-/** Persist template */
+/** Persist template (create or update) */
 function save() {
   form.body = quill ? quill.root.innerHTML : form.body
 
   const method = isEditing.value ? 'put' : 'post'
-
   // Keep current selected property_id in the URL as query so the page remains scoped
   const query = selectedPropertyId.value ? { property_id: selectedPropertyId.value } : {}
 
-  const routeName = isEditing.value
-    ? route('email-templates.update', [editingId.value, query])
-    : route('email-templates.store', query)
+  // Build Ziggy routes using named resource param
+  const url = isEditing.value
+    ? route('email-templates.update', { email_template: editingId.value, ...query })
+    : route('email-templates.store', { ...query })
 
-  form[method](routeName, {
+  form[method](url, {
     onSuccess: () => (isModalOpen.value = false),
   })
 }
@@ -112,8 +128,9 @@ function remove(id) {
   if (!confirm('Delete this template?')) return
 
   const query = selectedPropertyId.value ? { property_id: selectedPropertyId.value } : {}
+  const url = route('email-templates.destroy', { email_template: id, ...query })
 
-  form.delete(route('email-templates.destroy', [id, query]), { preserveState: true })
+  form.delete(url, { preserveState: true })
 }
 
 /** When user chooses a property, reload the page data with that property_id */
@@ -121,6 +138,13 @@ function onChangeProperty() {
   const query = selectedPropertyId.value ? { property_id: selectedPropertyId.value } : {}
   router.get(route('email-templates.index', query), {}, { preserveState: true, replace: true })
 }
+
+/** Clean up old Quill instance when modal closes so we always reinit next open */
+watch(isModalOpen, (open) => {
+  if (!open) {
+    quill = null
+  }
+})
 </script>
 
 <template>
@@ -131,7 +155,6 @@ function onChangeProperty() {
       <div class="flex items-center justify-between w-full">
         <h2 class="text-xl font-semibold">Email Templates</h2>
 
-        <!-- Property selector for the authenticated user's properties -->
         <div class="flex items-center gap-2">
           <label for="prop-select" class="text-sm text-gray-600">Select a Property:</label>
           <select
@@ -237,7 +260,7 @@ function onChangeProperty() {
             </span>
           </div>
 
-          <!-- Subject + variable chips -->
+          <!-- Subject -->
           <div>
             <label class="block text-sm font-medium text-gray-700">Subject</label>
             <input
