@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\User;
+use App\Models\Property;
 use Illuminate\Database\Eloquent\Model;
 
 class Appointment extends Model
@@ -19,6 +21,11 @@ class Appointment extends Model
 
     public function property()
     {
-        return $this->belongsTo(\App\Models\Property::class);
+        return $this->belongsTo(Property::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

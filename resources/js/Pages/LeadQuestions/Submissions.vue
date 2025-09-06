@@ -67,14 +67,14 @@ function closeViewModal() {
   <Head title="Submissions" />
   <AuthenticatedLayout>
     <template #header>
-      <h2 class="text-xl font-semibold text-gray-800">Submissions</h2>
+      <h2 class="text-xl font-semibold text-white">Submissions</h2>
     </template>
 
     <div class="py-12">
       <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="p-6 py-12 bg-white shadow sm:rounded-lg">
           <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold">{{ props.property.title }}</h1>
+            <h1 class="text-2xl font-bold">{{ props.property.title }} Entries</h1>
             <PrimaryButton 
             class="bg-gray-600 hover:bg-gray-700"
             @click="goToView(props.property.id)"
@@ -195,7 +195,6 @@ function closeViewModal() {
   <Modal :show="isViewModalOpen" @close="closeViewModal">
    <div class="p-5">
       <h3 class="text-lg font-semibold">Submission Details</h3>
-
 
     <!-- Only show once selectedSubmission is set -->
     <div v-if="selectedSubmission" class="p-4 space-y-4 overflow-y-auto max-h-96">

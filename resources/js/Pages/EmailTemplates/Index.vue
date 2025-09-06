@@ -153,10 +153,10 @@ watch(isModalOpen, (open) => {
   <AuthenticatedLayout>
     <template #header>
       <div class="flex items-center justify-between w-full">
-        <h2 class="text-xl font-semibold">Email Templates</h2>
+        <h2 class="text-xl font-semibold text-white">Email Templates</h2>
 
         <div class="flex items-center gap-2">
-          <label for="prop-select" class="text-sm text-gray-600">Select a Property:</label>
+          <label for="prop-select" class="text-sm text-white">Select a Property:</label>
           <select
             id="prop-select"
             v-model="selectedPropertyId"
@@ -179,7 +179,8 @@ watch(isModalOpen, (open) => {
     <div class="py-8">
       <div class="max-w-5xl p-6 mx-auto bg-white rounded shadow">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-medium">Manage Templates</h3>
+          <h3 v-if="!selectedPropertyId" class="text-lg font-medium">Manage Templates</h3>
+          <h3 v-if="selectedPropertyId" class="text-lg font-medium">Manage Templates for {{ props.properties[0].title }}</h3>
 
           <!-- Only show '+ New Template' when a property is selected -->
           <PrimaryButton

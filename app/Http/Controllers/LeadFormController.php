@@ -10,7 +10,10 @@ use App\Models\LeadQuestion;
 use App\Models\LeadResponse;
 use App\Models\ProspectFile;
 use Illuminate\Http\Request;
+use App\Models\AutomationSetting;
 use App\Models\QualificationRule;
+use App\Mail\AgentNotificationMail;
+use Illuminate\Support\Facades\Mail;
 use App\Models\LeadQuestionPreference;
 
 class LeadFormController extends Controller
@@ -35,46 +38,87 @@ class LeadFormController extends Controller
 
     public function submit(Request $request)
     {
-
         $request->validate([
             'property_id' => 'required|exists:properties,id',
-            'responses' => 'required|array',
+            'responses'   => 'required|array',
             'attachments' => 'sometimes|array',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:20480',
         ]);
 
         $submission = Submission::create([
-            'uuid' => Str::uuid(),
-            'property_id' => $request->property_id, // optional
+            'uuid'        => Str::uuid(),
+            'property_id' => $request->property_id,
         ]);
-
 
         // Save question responses
         foreach ($request->input('responses', []) as $questionId => $response) {
             LeadResponse::create([
-                'submission_id' => $submission->id,
+                'submission_id'   => $submission->id,
                 'lead_question_id' => $questionId,
-                'response' => is_array($response) ? json_encode($response) : $response,
+                'response'        => is_array($response) ? json_encode($response) : $response,
             ]);
         }
 
+        // Save attachments
         if ($request->hasFile('attachments')) {
             foreach ($request->file('attachments') as $file) {
                 if ($file instanceof \Illuminate\Http\UploadedFile) {
-                    // Store in 'public/prospect_uploads'
                     $path = $file->store('prospect_uploads', 'public');
 
                     ProspectFile::create([
                         'submission_id' => $submission->id,
-                        'filename' => $file->getClientOriginalName(),
-                        'path' => $path, // relative path: 'prospect_uploads/filename.ext'
+                        'filename'      => $file->getClientOriginalName(),
+                        'path'          => $path,
                     ]);
                 }
             }
         }
 
+        /**
+         * 🔥 Run automations for this property
+         */
+        $automations = AutomationSetting::where('property_id', $request->property_id)->get();
 
-        return redirect()->route('lead.form', ['property' => $request->input('property_id')])
+
+        foreach ($automations as $automation) {
+            // 🚦 only process "immediate" automations
+            if ($automation->send_method !== 'immediate') {
+                continue;
+            }
+
+            switch ($automation->action) {
+                case 'send_email':
+                    if ($automation->template_id) {
+                        $template = EmailTemplate::find($automation->template_id);
+                        if ($template) {
+                            // Example: send to prospect’s email if included in responses
+                            $prospectEmail = $request->input('responses.email') ?? null;
+
+                            if ($prospectEmail) {
+                                Mail::to($prospectEmail)
+                                    ->send(new \App\Mail\DynamicTemplateMail($template, $submission));
+                            }
+                        }
+                    }
+                    break;
+
+                case 'email_agent':
+                    //DONE
+                    $property =  Property::find($submission->property_id);
+                    $agent = $property->agent;
+                    if ($agent) {
+                        Mail::to($agent->email)->send(new AgentNotificationMail($property->title));
+                    }
+                    break;
+
+                case 'schedule_visit':
+                    // ⚡ trigger scheduling workflow here
+                    break;
+            }
+        }
+
+        return redirect()
+            ->route('lead.form', ['property' => $request->input('property_id')])
             ->with('success', 'Thank you for your submission!');
     }
 

@@ -170,15 +170,15 @@ function responseValue(resp) {
 <AuthenticatedLayout>
   <template #header>
     <div class="flex items-center justify-between">
-      <h2 class="text-xl font-semibold leading-tight text-gray-800">
-        My Properties
+      <h2 class="text-xl font-semibold leading-tight text-white">
+        Manage
       </h2>
     </div>
   </template>
   <div class="py-12">
     <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
     <div class="p-6 py-12 bg-white shadow sm:rounded-lg">
-      <h1>Manage Property</h1>
+      <h1>Manage your property {{ form.title }}. Make and save your changes.</h1>
       <form @submit.prevent="submit" class="mt-5 space-y-4">
     <TextInput v-model="form.title" placeholder="Title" class="w-full" />
     <TextArea v-model="form.description" placeholder="Description" rows="2" class="w-full" />

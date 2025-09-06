@@ -10,26 +10,31 @@ return new class () extends Migration {
      */
     public function up(): void
     {
+
         Schema::create('automation_settings', function (Blueprint $table) {
             $table->id();
 
             // Link back to the property
             $table->foreignId('property_id')->constrained()->onDelete('cascade');
 
-            // What action to take (only email for now)
-            $table->string('action')->default('email');
+            // Action type (send_email, email_agent, schedule_visit)
+            $table->string('action');
 
-            // Which email template to use
-            $table->foreignId('template_id')->constrained('email_templates')->onDelete('cascade');
+            // Optional fields depending on action type
+            $table->foreignId('template_id')
+                ->nullable()
+                ->constrained('email_templates')
+                ->nullOnDelete();
+
+            $table->string('agent_email')->nullable();
 
             // When to send: immediately or manual
             $table->enum('send_method', ['immediate','manual'])->default('immediate');
 
             $table->timestamps();
 
-            // One setting per property
-            $table->unique('property_id');
-
+            // Index for faster lookups
+            $table->index(['property_id', 'action']);
         });
     }
 
