@@ -1,18 +1,26 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useForm, router, Head } from '@inertiajs/vue3'
+import { useForm, router, Head, usePage } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import TextInput from '@/Components/TextInput.vue'
 import Select from '@/Components/Select.vue'
 import Modal from '@/Components/Modal.vue'
 
+const page = usePage()
+
 const props = defineProps({
   questions:   Array,
   property_id: Number,
   property: Object,
   rules: Array,  
-  emailTemplates:   { type: Array, default: () => [] },
+  emailTemplates: { type: Array, default: () => [] },
+  automationSettings: { type: Array, default: () => [] },
+})
+
+// --- Manage Automation (multi-actions) ---
+const manageForm = useForm({
+  actions: []
 })
 
 // base form for creating questions
@@ -28,12 +36,69 @@ const form = useForm({
   })),
 })
 
-// form for automation settings
-const manageForm = useForm({
-  action:       'email',        // only 'email' for now
-  template_id:  null,
-  send_method:  'immediate',    // 'immediate' or 'manual'
+
+watch(() => props.automationSettings, (newVal) => {
+  if (newVal.length && !manageForm.actions.length) {
+    manageForm.actions = newVal.map(a => ({
+      type: a.action,
+      template_id: a.template_id ?? "",
+      agent_email: a.agent_email ?? page.props.auth.user.email,
+      send_method: a.send_method ?? "immediate"
+    }))
+  }
 })
+
+// Add an action
+function addAction() {
+  manageForm.actions.push({
+    type: "",
+    template_id: "",
+    agent_email: page.props.auth.user.email,
+    send_method: "immediate"
+  })
+}
+
+// Remove an action
+function removeAction(index) {
+  manageForm.actions.splice(index, 1)
+}
+
+// Validate Save button
+const isSaveDisabled = computed(() => {
+  if (manageForm.processing || !manageForm.actions.length) return true
+  return manageForm.actions.some(action => {
+    switch (action.type) {
+      case "send_email":
+        return !action.template_id
+      case "email_agent":
+        return !action.agent_email
+      default:
+        return true
+    }
+  })
+})
+
+// Save automation settings
+function saveAutomation() {
+  const cleanedActions = manageForm.actions.map(a => {
+    const base = { type: a.type, send_method: a.send_method }
+    switch (a.type) {
+      case "send_email":
+        return { ...base, template_id: a.template_id }
+      case "email_agent":
+        return { ...base, agent_email: a.agent_email }
+      case "schedule_visit":
+        return { ...base }
+      default:
+        return base
+    }
+  })
+
+  manageForm.transform(() => ({ actions: cleanedActions }))
+    .post(route('qualification-automation.store', { property: props.property.id }), {
+      onSuccess: () => closeManageModal()
+    })
+}
 
 // View Property
 function goToView(id) {
@@ -51,22 +116,37 @@ function removeQuestion(i)  { form.questions.splice(i, 1) }
 function addOption(i)       { form.questions[i].options.push('') }
 function removeOption(i,j)  { form.questions[i].options.splice(j, 1) }
 function saveQuestions()    { form.post(route('lead-questions.store')) }
-// Manage‑automation modal state
-const isManageModalOpen = ref(false)
-function openManageModal() { isManageModalOpen.value = true }
-function closeManageModal(){ isManageModalOpen.value = false }
-// --- Qualification Rules Modals & State ---
 
-// list modal: choose a question
+// Manage-automation modal state
+const isManageModalOpen = ref(false)
+function openManageModal() {
+  // Clear current actions
+  manageForm.actions = []
+
+  if (props.automationSettings.length) {
+    manageForm.actions = props.automationSettings.map(a => ({
+      type: a.action,
+      template_id: a.template_id ?? "",
+      agent_email: a.agent_email ?? page.props.auth.user.email,
+      send_method: a.send_method ?? "immediate",
+    }))
+  } else {
+    // fallback: add a blank action
+    addAction()
+  }
+
+  isManageModalOpen.value = true
+}
+function closeManageModal(){ isManageModalOpen.value = false }
+
+// --- Qualification Rules ---
 const isRuleListOpen   = ref(false)
 function openRuleList() { isRuleListOpen.value = true }
 function closeRuleList(){ isRuleListOpen.value = false }
 
-// detail modal: pick answer for one question
 const isRuleDetailOpen  = ref(false)
 const currentQuestion   = ref(null)
 
-// useForm for rule persistence
 const ruleForm = useForm({
   property_id:       props.property_id,
   lead_question_id:  null,
@@ -75,15 +155,10 @@ const ruleForm = useForm({
 
 function openRuleDetail(q) {
   currentQuestion.value = q
-
-  // Reset and preload ruleForm
   ruleForm.reset()
   ruleForm.lead_question_id = q.id
-
-  // If an existing rule exists, prefill answer
   const existing = ruleLookup.value.get(q.id)
   ruleForm.answer = existing || ''
-
   isRuleDetailOpen.value = true
 }
 
@@ -92,21 +167,14 @@ function closeRuleDetail() {
   currentQuestion.value = null
 }
 
-// only checkbox & radio questions
 const ruleQuestions = computed(() =>
   form.questions.filter(q => ['checkbox','radio'].includes(q.type))
 )
 
-// update saveRule to post directly from ruleForm
 function saveRule() {
-  console.log('here');
   ruleForm.post(
     route('qualification-rules.store', { property: props.property_id }),
-    {
-      onSuccess: () => {
-        closeRuleDetail()
-      },
-    }
+    { onSuccess: () => closeRuleDetail() }
   )
 }
 
@@ -115,29 +183,7 @@ function removeRule(leadQuestionId) {
     route('qualification-rules.destroy', {
       property:          props.property_id,
       lead_question:     leadQuestionId,
-    }),
-    {
-      onSuccess: () => {
-        // optionally close or refresh modal
-      }
-    }
-  )
-};
-
-// clear form when opened
-watch(isManageModalOpen, open => {
-  if (open) manageForm.reset()
-})
-
-// submit automation settings
-function saveAutomation() {
-  manageForm.post(
-    route('qualification-automation.store', { property: props.property.id }),
-    {
-      onSuccess: () => {
-        closeManageModal()
-      },
-    }
+    })
   )
 }
 </script>
@@ -146,7 +192,7 @@ function saveAutomation() {
   <Head title="Manage Lead Questions" />
   <AuthenticatedLayout>
     <template #header>
-      <h2 class="text-xl font-semibold text-gray-800">Manage Lead Questions</h2>
+      <h2 class="text-xl font-semibold text-white">Manage Lead Questions</h2>
     </template>
 
     <div class="py-12">
@@ -158,7 +204,7 @@ function saveAutomation() {
               Property: {{ property.title }}
             </h2>
             <PrimaryButton @click="goToView(property_id)" class="bg-gray-600 hover:bg-gray-700">
-              Back
+              Back 
             </PrimaryButton>
           </div>
 
@@ -232,172 +278,146 @@ function saveAutomation() {
       </div>
     </div>
 
-    <!-- 1) Rule List Modal -->
-    <Modal :show="isRuleListOpen" @close="closeRuleList" >
-        <div class="p-5">
-            <h3 class="text-lg font-semibold">Select a Question to Rule</h3>
-          <div class="p-4 space-y-2 overflow-y-auto max-h-80">
-            <p class="text-gray-700">
-              Click “Set Rule” next to the question whose answer determines qualification.
-            </p>
-            <ul class="divide-y">
-              <li
-                v-for="q in ruleQuestions"
-                :key="q.id"
-                class="flex items-center justify-between py-2"
-              >
-                <div>
-                  <span class="text-gray-800">{{ q.question }}</span>
-                  <span
-                    v-if="ruleLookup.get(q.id)"
-                    class="text-xs font-medium text-green-600"
-                  >
-                    (Rule: {{ ruleLookup.get(q.id) }})
-                  </span>
-                </div>
-                <div class="space-x-2">
-            <PrimaryButton
-              v-if="!ruleLookup.get(q.id)"
-              @click="openRuleDetail(q)"
-              class="px-2 py-1 text-sm bg-teal-600 hover:bg-teal-700"
+    <!-- Rule List Modal -->
+    <Modal :show="isRuleListOpen" @close="closeRuleList">
+      <div class="p-5">
+        <h3 class="text-lg font-semibold">Select a Question to Rule</h3>
+        <div class="p-4 space-y-2 overflow-y-auto max-h-80">
+          <p class="text-gray-700">
+            Click “Set Rule” next to the question whose answer determines qualification.
+          </p>
+          <ul class="divide-y">
+            <li
+              v-for="q in ruleQuestions"
+              :key="q.id"
+              class="flex items-center justify-between py-2"
             >
-              Set Rule
-            </PrimaryButton>
-            <PrimaryButton
-              v-else
-              @click="removeRule(q.id)"
-              class="px-2 py-1 text-sm bg-red-600 hover:bg-red-700"
-            >
-              Remove
-            </PrimaryButton>
-          </div>
-              </li>
-            </ul>
-          </div>
-            <PrimaryButton @click="closeRuleList">Close</PrimaryButton>
+              <div>
+                <span class="text-gray-800">{{ q.question }}</span>
+                <span v-if="ruleLookup.get(q.id)" class="text-xs font-medium text-green-600">
+                  (Rule: {{ ruleLookup.get(q.id) }})
+                </span>
+              </div>
+              <div class="space-x-2">
+                <PrimaryButton
+                  v-if="!ruleLookup.get(q.id)"
+                  @click="openRuleDetail(q)"
+                  class="px-2 py-1 text-sm bg-teal-600 hover:bg-teal-700"
+                >
+                  Set Rule
+                </PrimaryButton>
+                <PrimaryButton
+                  v-else
+                  @click="removeRule(q.id)"
+                  class="px-2 py-1 text-sm bg-red-600 hover:bg-red-700"
+                >
+                  Remove
+                </PrimaryButton>
+              </div>
+            </li>
+          </ul>
         </div>
+        <PrimaryButton @click="closeRuleList">Close</PrimaryButton>
+      </div>
     </Modal>
 
-    <!-- 2) Rule Detail Modal -->
-  <Modal :show="isRuleDetailOpen" @close="closeRuleDetail">
-    <div class="p-5">
-      <h3 class="text-lg font-semibold">Define Qualification Answer</h3>
-      <div class="p-4 space-y-4">
-        <p class="text-gray-700">
-          For <strong class="text-gray-800">{{ currentQuestion.question }}</strong>,
-          select the one answer that makes a lead qualify:
-        </p>
-
-        <!-- Hidden field is already set in ruleForm.lead_question_id -->
-        <input type="hidden" v-model="ruleForm.lead_question_id" />
-
-        <div
-          v-for="opt in currentQuestion.options"
-          :key="opt"
-          class="flex items-center gap-2"
+    <!-- Rule Detail Modal -->
+    <Modal :show="isRuleDetailOpen" @close="closeRuleDetail">
+      <div class="p-5">
+        <h3 class="text-lg font-semibold">Define Qualification Answer</h3>
+        <div class="p-4 space-y-4">
+          <p class="text-gray-700">
+            For <strong class="text-gray-800">{{ currentQuestion.question }}</strong>,
+            select the one answer that makes a lead qualify:
+          </p>
+          <input type="hidden" v-model="ruleForm.lead_question_id" />
+          <div v-for="opt in currentQuestion.options" :key="opt" class="flex items-center gap-2">
+            <input
+              type="radio"
+              :value="opt"
+              v-model="ruleForm.answer"
+              class="form-radio"
+              :id="`opt-${opt}`"
+            />
+            <label :for="`opt-${opt}`" class="text-gray-800">{{ opt }}</label>
+          </div>
+        </div>
+        <PrimaryButton class="mr-2 bg-gray-400 hover:bg-gray-500" @click="closeRuleDetail">Cancel</PrimaryButton>
+        <PrimaryButton
+          class="bg-blue-600 hover:bg-blue-700"
+          @click="saveRule"
+          :disabled="!ruleForm.lead_question_id || !ruleForm.answer || ruleForm.processing"
         >
-          <input
-            type="radio"
-            :value="opt"
-            v-model="ruleForm.answer"
-            class="form-radio"
-            id="`opt-${opt}`"
-          />
-          <label :for="`opt-${opt}`" class="text-gray-800">{{ opt }}</label>
-        </div>
+          Save Rule
+        </PrimaryButton>
       </div>
-      <PrimaryButton
-        class="mr-2 bg-gray-400 hover:bg-gray-500"
-        @click="closeRuleDetail"
-      >
-        Cancel
-      </PrimaryButton>
-      <PrimaryButton
-        class="bg-blue-600 hover:bg-blue-700"
-        @click="saveRule"
-        :disabled="!ruleForm.lead_question_id || !ruleForm.answer || ruleForm.processing"
-      >
-        Save Rule
-      </PrimaryButton>
-    </div>
-  </Modal>
+    </Modal>
 
-  <!-- 3) Manage Automation Modal -->
-  <Modal :show="isManageModalOpen" @close="closeManageModal">
-    <div class="p-5">
-      <h3 class="mb-4 text-lg font-semibold">Configure Qualified‑Lead Automation</h3>
+    <!-- Manage Automation Modal -->
+    <Modal :show="isManageModalOpen" @close="closeManageModal">
+      <div class="p-5">
+        <h3 class="mb-4 text-lg font-semibold">Configure Qualified-Lead Automation</h3>
 
-      <div class="space-y-4">
+        <!-- loop through actions -->
+        <div v-for="(action, idx) in manageForm.actions" :key="idx" class="p-4 mb-4 border rounded bg-gray-50">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-md">Action {{ idx + 1 }}</h4>
+            <button type="button" class="text-sm text-red-600 hover:underline" @click="removeAction(idx)">Delete</button>
+          </div>
 
-        <!-- 1) Action selector -->
-        <div>
-          <label class="block mb-1 text-sm font-medium text-gray-700">
-            Action
-          </label>
-          <select v-model="manageForm.action" class="w-full p-2 border rounded">
-            <option value="email">Send Email</option>
-            <!-- future options here -->
-          </select>
-        </div>
+          <!-- Action selector -->
+          <div>
+            <label class="block mb-1 text-sm font-medium text-gray-700">Action</label>
+            <select v-model="action.type" class="w-full p-2 border rounded">
+              <option disabled value="">-- select an action --</option>
+              <option value="send_email">Send Email</option>
+              <option value="email_agent">Email and Notify me</option>
+              <option value="schedule_visit">Send Site Visit Email</option>
+            </select>
+          </div>
 
-        <!-- 2) If email, pick template -->
-        <div v-if="manageForm.action === 'email'">
-          <label class="block mb-1 text-sm font-medium text-gray-700">
-            Email Template
-          </label>
-          <select v-model="manageForm.template_id" class="w-full p-2 border rounded">
-            <option disabled value="">-- select a template --</option>
-            <option
-              v-for="tmpl in props.emailTemplates"
-              :key="tmpl.id"
-              :value="tmpl.id"
-            >
-              {{ tmpl.name }}
-            </option>
-          </select>
-        </div>
+          <!-- Supporting fields -->
+          <div v-if="action.type === 'send_email'" class="mt-3">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Email Template</label>
+            <select v-model="action.template_id" class="w-full p-2 border rounded">
+              <option disabled value="">-- select a template --</option>
+              <option v-for="tmpl in props.emailTemplates" :key="tmpl.id" :value="tmpl.id">
+                {{ tmpl.name }}
+              </option>
+            </select>
+          </div>
 
-        <!-- 3) Send method -->
-        <div>
-          <label class="block mb-1 text-sm font-medium text-gray-700">
-            Send Timing
-          </label>
-          <div class="flex items-center space-x-4">
-            <label class="inline-flex items-center">
-              <input
-                type="radio"
-                value="immediate"
-                v-model="manageForm.send_method"
-                class="form-radio"
-              />
-              <span class="ml-2">Immediately after submission</span>
-            </label>
-            <label class="inline-flex items-center">
-              <input
-                type="radio"
-                value="manual"
-                v-model="manageForm.send_method"
-                class="form-radio"
-              />
-              <span class="ml-2">Manual send</span>
-            </label>
+          <div v-if="action.type === 'email_agent'" class="mt-3">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Agent Email Address</label>
+            <input type="email" v-model="action.agent_email" class="w-full p-2 border rounded" placeholder="e.g. agent@example.com" />
+          </div>
+
+          <!-- Send method -->
+          <div class="mt-4">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Send Timing</label>
+            <div class="flex items-center space-x-4">
+              <label class="inline-flex items-center">
+                <input type="radio" value="immediate" v-model="action.send_method" class="form-radio" />
+                <span class="ml-2">Immediately after submission</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" value="manual" v-model="action.send_method" class="form-radio" />
+                <span class="ml-2">Manual send</span>
+              </label>
+            </div>
           </div>
         </div>
 
-      </div>
+        <!-- Add action button -->
+        <div class="mb-6">
+          <PrimaryButton class="bg-blue-500 hover:bg-blue-600" @click="addAction">+ Add Action</PrimaryButton>
+        </div>
 
-      <div class="flex justify-end mt-6 space-x-2">
-        <PrimaryButton class="bg-gray-400 hover:bg-gray-500" @click="closeManageModal">
-          Cancel
-        </PrimaryButton>
-        <PrimaryButton
-          class="bg-teal-600 hover:bg-teal-700"
-          @click="saveAutomation"
-          :disabled="!manageForm.template_id || manageForm.processing"
-        >
-          Save
-        </PrimaryButton>
-      </div>
+        <!-- Footer -->
+        <div class="flex justify-end space-x-2">
+          <PrimaryButton class="bg-gray-400 hover:bg-gray-500" @click="closeManageModal">Cancel</PrimaryButton>
+          <PrimaryButton class="bg-teal-600 hover:bg-teal-700" @click="saveAutomation" :disabled="isSaveDisabled">Save</PrimaryButton>
+        </div>
       </div>
     </Modal>
   </AuthenticatedLayout>

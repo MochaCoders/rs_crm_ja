@@ -11,6 +11,7 @@ class AutomationSetting extends Model
             'property_id',
             'action',
             'template_id',
+            'agent_email',
             'send_method',
         ];
 

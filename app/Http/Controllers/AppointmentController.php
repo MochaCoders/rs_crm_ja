@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use App\Models\User;
 use Inertia\Inertia;
 use App\Models\Property;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
+use App\Mail\AppointmentConfirmed;
+use Illuminate\Support\Facades\Mail;
 
 class AppointmentController extends Controller
 {
@@ -39,12 +42,10 @@ class AppointmentController extends Controller
             'scheduled_at' => 'required|date|after:now', // ISO8601 from client (UTC)
         ]);
 
-        // Normalize to UTC and zero seconds so equality checks are consistent
         $scheduledAtUtc = Carbon::parse($data['scheduled_at'])
             ->utc()
             ->setSecond(0);
 
-        // Prevent duplicates: same property + email + exact datetime
         $exists = Appointment::where('property_id', $property->id)
             ->where('email', $data['email'])
             ->where('scheduled_at', $scheduledAtUtc)
@@ -61,14 +62,13 @@ class AppointmentController extends Controller
         }
 
         try {
-            Appointment::create([
+            $appointment = Appointment::create([
                 'property_id'  => $property->id,
                 'email'        => $data['email'],
                 'scheduled_at' => $scheduledAtUtc,   // store UTC
                 'status'       => 'scheduled',
             ]);
         } catch (QueryException $e) {
-            // If you also add a DB unique index, this gracefully handles race conditions
             if ((string)$e->getCode() === '23000') {
                 $whenLocal = $scheduledAtUtc->copy()
                     ->setTimezone(config('app.timezone'))
@@ -81,6 +81,19 @@ class AppointmentController extends Controller
             throw $e;
         }
 
+        // ✅ Build the payload array
+        $payload = [
+            'name'          => optional($appointment->user)->name,        // from User model
+            'email'          => $appointment->email,        // from User model
+            'property_name' => optional($appointment->property)->title,
+            'scheduled_at'  => $appointment->scheduled_at
+                ->setTimezone(config('app.timezone'))
+                ->translatedFormat('l, F j, Y g:i A'), // Thursday, August 1, 2025
+        ];
+
+        // ✅ Send the confirmation email
+        Mail::to($appointment->email)->send(new AppointmentConfirmed($payload));
+
         $when = $scheduledAtUtc->copy()
             ->setTimezone(config('app.timezone'))
             ->format('M j, Y g:i A');
@@ -89,4 +102,5 @@ class AppointmentController extends Controller
             ->route('appointments.create', ['property' => $property->id, 'email' => $data['email']])
             ->with('success', "Appointment scheduled for {$when}!");
     }
+
 }

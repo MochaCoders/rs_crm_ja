@@ -12,9 +12,9 @@ const showingNavigationDropdown = ref(false);
 
 <template>
     <div>
-        <div class="min-h-screen bg-gray-100">
+        <div class="min-h-screen bg-blue-100">
             <nav
-                class="bg-white border-b border-gray-100"
+                class="bg-blue-900 border-b border-blue-100"
             >
                 <!-- Primary Navigation Menu -->
                 <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
@@ -24,7 +24,7 @@ const showingNavigationDropdown = ref(false);
                             <div class="flex items-center shrink-0">
                                 <Link :href="route('dashboard.index')">
                                     <ApplicationLogo
-                                        class="block w-auto text-gray-800 fill-current h-9"
+                                        class="block w-auto text-white fill-current h-9"
                                     />
                                 </Link>
                             </div>
@@ -36,14 +36,23 @@ const showingNavigationDropdown = ref(false);
                                 <NavLink
                                     :href="route('dashboard.index')"
                                     :active="route().current('dashboard.index')"
+                                    class="text-white hover:text-blue-300"
                                 >
                                     Dashboard
                                 </NavLink>
                                 <NavLink
                                     :href="route('properties.index')"
                                     :active="route().current('properties.index')"
+                                    class="text-white hover:text-blue-300"
                                 >
                                     Properties
+                                </NavLink>
+                                <NavLink
+                                    :href="route('email-templates.index')"
+                                    :active="route().current('email-templates.index')"
+                                    class="text-white hover:text-blue-300"
+                                >
+                                    Email Templates
                                 </NavLink>
                             </div>
                         </div>
@@ -56,7 +65,7 @@ const showingNavigationDropdown = ref(false);
                                         <span class="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out bg-white border border-transparent rounded-md hover:text-gray-700 focus:outline-none"
+                                                class="inline-flex items-center px-3 py-2 text-sm font-medium leading-4 text-white transition duration-150 ease-in-out border border-white rounded-md hover:text-blue-300 focus:outline-none"
                                             >
                                                 {{ $page.props.auth.user.first_name }} {{ $page.props.auth.user.last_name }}
 
@@ -101,7 +110,7 @@ const showingNavigationDropdown = ref(false);
                                     showingNavigationDropdown =
                                         !showingNavigationDropdown
                                 "
-                                class="inline-flex items-center justify-center p-2 text-gray-400 transition duration-150 ease-in-out rounded-md hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                class="inline-flex items-center justify-center p-2 text-white transition duration-150 ease-in-out rounded-md hover:bg-gray-100 hover:text-white focus:bg-gray-100 focus:text-white focus:outline-none"
                             >
                                 <svg
                                     class="w-6 h-6"
@@ -160,11 +169,11 @@ const showingNavigationDropdown = ref(false);
                     >
                         <div class="px-4">
                             <div
-                                class="text-base font-medium text-gray-800"
+                                class="text-base font-medium text-white"
                             >
                                 {{ $page.props.auth.user.first_name }}
                             </div>
-                            <div class="text-sm font-medium text-gray-500">
+                            <div class="text-sm font-medium text-white">
                                 {{ $page.props.auth.user.email }}
                             </div>
                         </div>
@@ -187,7 +196,7 @@ const showingNavigationDropdown = ref(false);
 
             <!-- Page Heading -->
             <header
-                class="bg-white shadow"
+                class="bg-blue-900 shadow"
                 v-if="$slots.header"
             >
                 <div class="px-4 py-6 mx-auto max-w-7xl sm:px-6 lg:px-8">

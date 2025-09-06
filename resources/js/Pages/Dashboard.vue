@@ -13,23 +13,18 @@ const props = defineProps({
   
     <AuthenticatedLayout>
       <template #header>
-        <h2 class="text-xl font-semibold leading-tight text-gray-800">
-          Welcome, {{ $page.props.auth.user.first_name }}
+        <h2 class="text-xl font-semibold leading-tight text-white">
+          Welcome {{ $page.props.auth.user.first_name }}
         </h2>
       </template>
   
       <div class="py-12">
-        <div class="mx-auto space-y-6 max-w-7xl sm:px-6 lg:px-8">
-          <!-- You're logged in message -->
-          <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
-            <div class="p-6 text-gray-900">You're logged in!</div>
-          </div>
-  
+        <div class="mx-auto space-y-6 max-w-7xl sm:px-6 lg:px-8">  
           <!-- Property Count Card -->
-          <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+          <div class="overflow-hidden bg-blue-800 shadow sm:rounded-lg">
             <div class="p-6">
-              <h3 class="text-lg font-semibold text-gray-800">My Properties</h3>
-              <p class="mt-1 text-2xl font-bold text-blue-600">
+              <h3 class="text-lg font-semibold text-gray-200">My Properties</h3>
+              <p class="mt-1 text-2xl font-bold text-blue-200">
                 {{ props.propertyCount }}
               </p>
             </div>

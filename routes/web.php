@@ -1,6 +1,8 @@
 <?php
 
 use Inertia\Inertia;
+use App\Mail\DevTestMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Application;
 use App\Http\Controllers\UnitController;
@@ -31,7 +33,6 @@ Route::middleware('auth')->group(function () {
     Route::resource('properties', PropertyController::class);
     Route::post('/properties/{property}/qualification-rules', [QualificationRuleController::class, 'store'])->name('qualification-rules.store');
     Route::delete('/properties/{property}/qualification-rules/{lead_question}', [QualificationRuleController::class, 'destroy'])->name('qualification-rules.destroy');
-
     Route::post('/properties/{property}/qualification-automation', [AutomationController::class, 'store'])->name('qualification-automation.store');
     Route::resource('email-templates', EmailTemplateController::class)->except(['show']);
 
@@ -58,6 +59,13 @@ Route::post('/submissions/{property}/headings', [LeadFormController::class, 'upd
 Route::get('/appointment', [AppointmentController::class, 'index'])->name('appointment.index');
 Route::get('/appointments/create/{property}', [AppointmentController::class, 'create'])->name('appointments.create');
 Route::post('/appointments/store/{property}', [AppointmentController::class, 'store'])->name('appointments.store');
+
+
+Route::get('/dev/test-email', function () {
+    Mail::to('someone@example.test')->send(new DevTestMail());
+    return 'Sent! Check Mailpit at http://localhost:8025';
+})->middleware('auth');
+
 
 
 require __DIR__.'/auth.php';

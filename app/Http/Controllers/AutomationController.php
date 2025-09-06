@@ -4,23 +4,59 @@ namespace App\Http\Controllers;
 
 use App\Models\Property;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use App\Models\AutomationSetting;
 
 class AutomationController extends Controller
 {
     public function store(Request $request, Property $property)
     {
-        $data = $request->validate([
-            'action'      => 'required|in:email',
-            'template_id' => 'required_if:action,email|exists:email_templates,id',
-            'send_method' => 'required|in:immediate,manual',
-        ]);
+        // Base rules (allow template_id and agent_email to pass through)
+        $rules = [
+            'actions'                  => 'required|array|min:1',
+            'actions.*.type'           => 'required|string|in:send_email,email_agent,schedule_visit',
+            'actions.*.send_method'    => 'required|string|in:immediate,manual',
+            'actions.*.template_id'    => 'nullable|integer|exists:email_templates,id',
+            'actions.*.agent_email'    => 'nullable|email',
+        ];
 
-        AutomationSetting::updateOrCreate(
-            ['property_id' => $property->id],
-            $data
-        );
+        $validator = Validator::make($request->all(), $rules);
 
-        return back()->with('success', 'Automation settings saved.');
+        // Conditional requirements per action type
+        $validator->after(function ($v) use ($request) {
+            foreach ((array) $request->input('actions', []) as $i => $action) {
+                $type = $action['type'] ?? null;
+
+                if ($type === 'send_email' && empty($action['template_id'])) {
+                    $v->errors()->add("actions.$i.template_id", 'Template is required for Send Email.');
+                }
+
+                if ($type === 'email_agent' && empty($action['agent_email'])) {
+                    $v->errors()->add("actions.$i.agent_email", 'Agent email is required for Email and Notify me.');
+                }
+            }
+        });
+
+        $data = $validator->validate();
+
+        DB::transaction(function () use ($property, $data) {
+            // Clear existing actions for the property
+            AutomationSetting::where('property_id', $property->id)->delete();
+
+            // Insert new actions (one row per action)
+            foreach ($data['actions'] as $a) {
+                AutomationSetting::create([
+                    'property_id'          => $property->id,
+                    'action'               => $a['type'],
+                    'template_id'          => $a['template_id'] ?? null,
+                    'agent_email'          => $a['agent_email'] ?? null,
+                    'send_method'          => $a['send_method'],
+                    // If you re-add fields later, map them here too.
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Automation settings saved!');
     }
 }

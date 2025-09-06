@@ -32,6 +32,7 @@ class LeadQuestionController extends Controller
             'property'         => $property,
             'rules'            => $rules,
             'emailTemplates'   => $templates,
+            'automationSettings' => $property->automationSettings()->get(),
         ]);
     }
 
