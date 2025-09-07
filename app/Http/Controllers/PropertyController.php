@@ -46,7 +46,6 @@ class PropertyController extends Controller
         $hasEntries = Submission::where('property_id', $property->id)
             ->whereHas('responses')
             ->exists();
-
         $prospects = Submission::with([
                 // Eager-load each response's question text
                 'responses.question:id,question',          // keep the payload light
