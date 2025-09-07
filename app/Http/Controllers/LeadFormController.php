@@ -10,6 +10,8 @@ use App\Models\LeadQuestion;
 use App\Models\LeadResponse;
 use App\Models\ProspectFile;
 use Illuminate\Http\Request;
+use App\Models\EmailTemplate;
+use App\Mail\DynamicTemplateMail;
 use App\Models\AutomationSetting;
 use App\Models\QualificationRule;
 use App\Mail\AgentNotificationMail;
@@ -50,6 +52,8 @@ class LeadFormController extends Controller
             'property_id' => $request->property_id,
         ]);
 
+        $property =  Property::find($submission->property_id);
+
         // Save question responses
         foreach ($request->input('responses', []) as $questionId => $response) {
             LeadResponse::create([
@@ -88,23 +92,17 @@ class LeadFormController extends Controller
 
             switch ($automation->action) {
                 case 'send_email':
-                    if ($automation->template_id) {
-                        $template = EmailTemplate::find($automation->template_id);
-                        if ($template) {
-                            // Example: send to prospect’s email if included in responses
-                            $prospectEmail = $request->input('responses.email') ?? null;
 
-                            if ($prospectEmail) {
-                                Mail::to($prospectEmail)
-                                    ->send(new \App\Mail\DynamicTemplateMail($template, $submission));
-                            }
-                        }
+                    $template = EmailTemplate::find($automation->template_id);
+                    $emailQuestion = LeadQuestion::where('property_id', $submission->property_id)->where('type', 'email')->first();
+                    $emailAddress = LeadResponse::where('submission_id', $submission->id)->where('lead_question_id', $emailQuestion->id)->value('response');
+                    if ($emailAddress && filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
+                        Mail::to($emailAddress)->send(new DynamicTemplateMail($template, $submission, $property));
                     }
                     break;
 
                 case 'email_agent':
                     //DONE
-                    $property =  Property::find($submission->property_id);
                     $agent = $property->agent;
                     if ($agent) {
                         Mail::to($agent->email)->send(new AgentNotificationMail($property->title));
