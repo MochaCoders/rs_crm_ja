@@ -71,6 +71,15 @@ function submit() {
             />
           </template>
 
+          <template v-if="question.type === 'email'">
+            <TextInput
+              type="email"
+              v-model="form.responses[question.id]"
+              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-400"
+              placeholder="Enter your email address"
+            />
+          </template>
+          
           <template v-if="question.type === 'textarea'">
             <TextArea
               v-model="form.responses[question.id]"

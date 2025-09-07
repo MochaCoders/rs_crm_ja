@@ -119,6 +119,12 @@ function saveQuestions()    { form.post(route('lead-questions.store')) }
 
 // Manage-automation modal state
 const isManageModalOpen = ref(false)
+
+// check if there is at least one email-type question
+const hasEmailQuestion = computed(() =>
+  form.questions.some(q => q.type === 'email')
+)
+
 function openManageModal() {
   // Clear current actions
   manageForm.actions = []
@@ -242,7 +248,8 @@ function removeRule(leadQuestionId) {
                 v-model="q.type"
                 class="p-2 border rounded"
                 :options="[
-                  { label: 'Input',    value: 'input'    },
+                  { label: 'Input', value: 'input' },
+                  { label: 'Email', value: 'email' },
                   { label: 'Textarea', value: 'textarea' },
                   { label: 'File',     value: 'file'     },
                   { label: 'Checkbox', value: 'checkbox' },
@@ -270,9 +277,12 @@ function removeRule(leadQuestionId) {
           </div>
 
           <!-- Actions -->
+           <div class="flex justify-end">
+            <label class="text-red-700" v-if="!hasEmailQuestion">An email field type needs to be added.</label>
+          </div>
           <div class="flex items-center justify-between">
             <PrimaryButton @click="addQuestion" class="bg-green-600 hover:bg-green-700">+ Add Question</PrimaryButton>
-            <PrimaryButton @click="saveQuestions" class="bg-purple-600 hover:bg-purple-700">Save</PrimaryButton>
+            <PrimaryButton @click="saveQuestions" :disabled="!hasEmailQuestion" class="bg-green-600 hover:bg-green-700 disabled:bg-slate-600">Save</PrimaryButton>
           </div>
         </div>
       </div>

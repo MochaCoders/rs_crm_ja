@@ -42,7 +42,7 @@ class LeadQuestionController extends Controller
             'property_id' => 'required|exists:properties,id',
             'questions' => 'required|array',
             'questions.*.question' => 'required|string',
-            'questions.*.type' => 'required|in:input,textarea,checkbox,radio',
+            'questions.*.type' => 'required|in:input,textarea,email,checkbox,radio',
             'questions.*.options' => 'nullable|array',
         ]);
 
