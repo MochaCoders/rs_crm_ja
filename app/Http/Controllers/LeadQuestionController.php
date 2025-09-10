@@ -32,7 +32,14 @@ class LeadQuestionController extends Controller
             'property'         => $property,
             'rules'            => $rules,
             'emailTemplates'   => $templates,
-            'automationSettings' => $property->automationSettings()->get(),
+            // Separate automation settings
+                'qualifiedAutomationSettings'   => $property->automationSettings()
+                    ->where('lead_type', 'qualified')
+                    ->get(),
+
+                'unqualifiedAutomationSettings' => $property->automationSettings()
+                    ->where('lead_type', 'unqualified')
+                    ->get(),
         ]);
     }
 

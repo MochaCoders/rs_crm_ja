@@ -41,9 +41,9 @@ class LeadFormController extends Controller
     public function submit(Request $request)
     {
         $request->validate([
-            'property_id' => 'required|exists:properties,id',
-            'responses'   => 'required|array',
-            'attachments' => 'sometimes|array',
+            'property_id'   => 'required|exists:properties,id',
+            'responses'     => 'required|array',
+            'attachments'   => 'sometimes|array',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:20480',
         ]);
 
@@ -52,14 +52,14 @@ class LeadFormController extends Controller
             'property_id' => $request->property_id,
         ]);
 
-        $property =  Property::find($submission->property_id);
+        $property = Property::findOrFail($submission->property_id);
 
         // Save question responses
         foreach ($request->input('responses', []) as $questionId => $response) {
             LeadResponse::create([
-                'submission_id'   => $submission->id,
+                'submission_id'    => $submission->id,
                 'lead_question_id' => $questionId,
-                'response'        => is_array($response) ? json_encode($response) : $response,
+                'response'         => is_array($response) ? json_encode($response) : $response,
             ]);
         }
 
@@ -79,30 +79,63 @@ class LeadFormController extends Controller
         }
 
         /**
-         * 🔥 Run automations for this property
+         * ✅ Determine if lead is qualified or unqualified
+         * - If no rules are defined → default to "unqualified" (safe assumption)
+         * - If ALL rules match → qualified
+         * - If ANY rule fails → unqualified
          */
-        $automations = AutomationSetting::where('property_id', $request->property_id)->get();
+        $rules = QualificationRule::where('property_id', $property->id)->get();
+        $leadType = 'unqualified'; // default
 
+        if ($rules->isNotEmpty()) {
+            $allMatch = true;
+
+            foreach ($rules as $rule) {
+                $answer = LeadResponse::where('submission_id', $submission->id)
+                    ->where('lead_question_id', $rule->lead_question_id)
+                    ->value('response');
+
+                if ($answer != $rule->answer) {
+                    $allMatch = false;
+                    break;
+                }
+            }
+
+            $leadType = $allMatch ? 'qualified' : 'unqualified';
+        }
+
+        /**
+         * 🔥 Run automations ONLY for this lead type
+         */
+        $automations = AutomationSetting::where('property_id', $property->id)
+            ->where('lead_type', $leadType)
+            ->get();
 
         foreach ($automations as $automation) {
-            // 🚦 only process "immediate" automations
             if ($automation->send_method !== 'immediate') {
                 continue;
             }
 
             switch ($automation->action) {
                 case 'send_email':
-
                     $template = EmailTemplate::find($automation->template_id);
-                    $emailQuestion = LeadQuestion::where('property_id', $submission->property_id)->where('type', 'email')->first();
-                    $emailAddress = LeadResponse::where('submission_id', $submission->id)->where('lead_question_id', $emailQuestion->id)->value('response');
-                    if ($emailAddress && filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
-                        Mail::to($emailAddress)->send(new DynamicTemplateMail($template, $submission, $property));
+
+                    $emailQuestion = LeadQuestion::where('property_id', $submission->property_id)
+                        ->where('type', 'email')
+                        ->first();
+
+                    if ($emailQuestion) {
+                        $emailAddress = LeadResponse::where('submission_id', $submission->id)
+                            ->where('lead_question_id', $emailQuestion->id)
+                            ->value('response');
+
+                        if ($emailAddress && filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
+                            Mail::to($emailAddress)->send(new DynamicTemplateMail($template, $submission, $property));
+                        }
                     }
                     break;
 
                 case 'email_agent':
-                    //DONE
                     $agent = $property->agent;
                     if ($agent) {
                         Mail::to($agent->email)->send(new AgentNotificationMail($property->title));
@@ -119,6 +152,8 @@ class LeadFormController extends Controller
             ->route('lead.form', ['property' => $request->input('property_id')])
             ->with('success', 'Thank you for your submission!');
     }
+
+
 
     /**
      * Save or update the selected column‐headings for a property's submissions table.
