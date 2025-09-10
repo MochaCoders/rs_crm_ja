@@ -144,7 +144,7 @@ watch(isModalOpen, (open) => {
   if (!open) {
     quill = null
   }
-})
+});
 </script>
 
 <template>
@@ -154,9 +154,11 @@ watch(isModalOpen, (open) => {
     <template #header>
       <div class="flex items-center justify-between w-full">
         <h2 class="text-xl font-semibold text-white">Email Templates</h2>
-
-        <div class="flex items-center gap-2">
-          <label for="prop-select" class="text-sm text-white">Select a Property:</label>
+      </div>
+    </template>
+    
+        <div class="flex justify-end">
+          <label for="prop-select" class="text-lg font-bold text-blue-600">Select a Property</label>
           <select
             id="prop-select"
             v-model="selectedPropertyId"
@@ -173,43 +175,41 @@ watch(isModalOpen, (open) => {
             </option>
           </select>
         </div>
-      </div>
-    </template>
 
     <div class="py-8">
-      <div class="max-w-5xl p-6 mx-auto bg-white rounded shadow">
+      <div class="max-w-5xl p-6 mx-auto rounded-lg shadow bg-gradient-to-r from-blue-400 to-purple-500">
         <div class="flex items-center justify-between mb-4">
-          <h3 v-if="!selectedPropertyId" class="text-lg font-medium">Manage Templates</h3>
-          <h3 v-if="selectedPropertyId" class="text-lg font-medium">Manage Templates for {{ props.properties[0].title }}</h3>
+          <h3 v-if="!selectedPropertyId" class="text-lg font-medium text-white">Manage Templates</h3>
+          <h3 v-if="selectedPropertyId" class="text-lg font-medium text-white">Manage Templates for {{ props.properties[0].title }}</h3>
 
           <!-- Only show '+ New Template' when a property is selected -->
           <PrimaryButton
             v-if="selectedPropertyId"
             @click="openCreate"
-            class="bg-blue-600 hover:bg-blue-700"
+            class="!bg-purple-600 !hover:bg-purple-700 "
           >
             + New Template
           </PrimaryButton>
         </div>
 
         <!-- Helper text depending on selection -->
-        <p v-if="selectedPropertyId" class="mb-4 text-sm text-gray-600">
+        <p v-if="selectedPropertyId" class="mb-4 text-sm text-white">
           Variables reflect lead questions for the selected property.
         </p>
-        <p v-else class="px-3 py-2 mb-4 text-sm border rounded text-amber-700 bg-amber-50 border-amber-200">
-          Select a property to create a new email template and load property-specific variables.
+        <p v-else class="mb-4 text-sm text-white ">
+          Select a property to create a new email template.
         </p>
 
         <table class="w-full border-collapse">
           <thead>
-            <tr class="bg-gray-100">
+            <tr class="text-white bg-blue-600">
               <th class="px-4 py-2 text-left">Name</th>
               <th class="px-4 py-2 text-left">Subject</th>
-              <th class="px-4 py-2"></th>
+              <th class="px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="tpl in props.templates" :key="tpl.id" class="border-t">
+            <tr v-for="tpl in props.templates" :key="tpl.id" class="text-white border-t">
               <td class="px-4 py-2">{{ tpl.name }}</td>
               <td class="px-4 py-2 truncate max-w-[24rem]" :title="tpl.subject">
                 {{ tpl.subject }}
@@ -217,7 +217,7 @@ watch(isModalOpen, (open) => {
               <td class="px-4 py-2 space-x-2 text-right">
                 <PrimaryButton
                   @click="openEdit(tpl)"
-                  class="text-sm bg-yellow-500 hover:bg-yellow-600"
+                  class="text-sm bg-purple-700 hover:bg-purple-600"
                 >
                   Edit
                 </PrimaryButton>

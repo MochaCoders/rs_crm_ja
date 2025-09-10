@@ -30,6 +30,9 @@ const props = defineProps({
             </div>
           </div>
         </div>
+        <div class="mt-5 text-center text-blue-900">
+          <p>The RS Automation tool does not take personal credit card information.</p>
+        </div>
       </div>
     </AuthenticatedLayout>
   </template>
