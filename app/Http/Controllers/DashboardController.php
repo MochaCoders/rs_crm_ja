@@ -12,7 +12,6 @@ class DashboardController extends Controller
     public function index()
     {
         $propertyCount = Auth::user()->properties()->count();
-
         return Inertia::render('Dashboard', [
             'propertyCount' => $propertyCount,
         ]);

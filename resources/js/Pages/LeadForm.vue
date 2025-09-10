@@ -6,7 +6,8 @@ import TextArea from '@/Components/TextArea.vue'
 import ExternalFormLayout from '@/Layouts/ExternalFormLayout.vue'
 const props = defineProps({
   questions: Array,
-  property_id:Number
+  property_id: Number,
+  property: Object,
 })
 const generalFiles = ref({})
 const form = useForm({
@@ -50,9 +51,15 @@ function submit() {
 
 <template>
   <ExternalFormLayout>
-    <Head title="Application" />
+<Head :title="`Application for ${property.title}`" />
     <div class="max-w-5xl px-6 py-10 mx-auto rounded-2xl">
-      <h1 class="mb-8 text-3xl font-bold text-gray-800">Application</h1>
+      <div class="mb-10">
+      <h1 class="mb-2 text-xl font-bold text-gray-800">About {{ property.title }}</h1>
+      <p>{{ property.description }}</p>
+      <p class="font-bold">{{ property.address }}</p>
+      <p class="text-sm font-bold">{{ property.parish }}</p>
+    </div>
+      <h1 class="mb-2 text-xl font-bold text-gray-800">Application</h1>
       <form @submit.prevent="submit" enctype="multipart/form-data" class="space-y-8">
         <div
           v-for="question in props.questions"
