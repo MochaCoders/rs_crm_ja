@@ -15,11 +15,17 @@ const props = defineProps({
   property: Object,
   rules: Array,  
   emailTemplates: { type: Array, default: () => [] },
-  automationSettings: { type: Array, default: () => [] },
+  qualifiedAutomationSettings: { type: Array, default: () => [] },
+  unqualifiedAutomationSettings: { type: Array, default: () => [] },
 })
 
-// --- Manage Automation (multi-actions) ---
+// --- Manage Qualified Leads Automation (multi-actions) ---
 const manageForm = useForm({
+  actions: []
+})
+
+// --- Manage Unqualified Leads Automation (multi-actions) ---
+const manageUnqualifiedForm = useForm({
   actions: []
 })
 
@@ -36,8 +42,8 @@ const form = useForm({
   })),
 })
 
-
-watch(() => props.automationSettings, (newVal) => {
+// Watch for qualified automation settings
+watch(() => props.qualifiedAutomationSettings, (newVal) => {
   if (newVal.length && !manageForm.actions.length) {
     manageForm.actions = newVal.map(a => ({
       type: a.action,
@@ -48,7 +54,18 @@ watch(() => props.automationSettings, (newVal) => {
   }
 })
 
-// Add an action
+// Watch for unqualified automation settings
+watch(() => props.unqualifiedAutomationSettings, (newVal) => {
+  if (newVal.length && !manageUnqualifiedForm.actions.length) {
+    manageUnqualifiedForm.actions = newVal.map(a => ({
+      type: a.action,
+      template_id: a.template_id ?? "",
+      agent_email: a.agent_email ?? page.props.auth.user.email,
+      send_method: a.send_method ?? "immediate"
+    }))
+  }
+})
+// Add an action for qualified
 function addAction() {
   manageForm.actions.push({
     type: "",
@@ -58,12 +75,27 @@ function addAction() {
   })
 }
 
-// Remove an action
+// Remove an action for qualified
 function removeAction(index) {
   manageForm.actions.splice(index, 1)
 }
 
-// Validate Save button
+// Add an action for unqualified
+function addUqAction() {
+  manageUnqualifiedForm.actions.push({
+    type: "",
+    template_id: "",
+    agent_email: page.props.auth.user.email,
+    send_method: "immediate"
+  })
+}
+
+// Remove an action for unqualified
+function removeUqAction(index) {
+  manageUnqualifiedForm.actions.splice(index, 1)
+}
+
+// Validate Save button for qualified leads
 const isSaveDisabled = computed(() => {
   if (manageForm.processing || !manageForm.actions.length) return true
   return manageForm.actions.some(action => {
@@ -76,9 +108,24 @@ const isSaveDisabled = computed(() => {
         return true
     }
   })
+});
+
+// Validate Save button for unqualified leads
+const isUnqualifiedSaveDisabled = computed(() => {
+  if (manageUnqualifiedForm.processing || !manageUnqualifiedForm.actions.length) return true
+  return manageUnqualifiedForm.actions.some(action => {
+    switch (action.type) {
+      case "send_email":
+        return !action.template_id
+      case "email_agent":
+        return !action.agent_email
+      default:
+        return true
+    }
+  })
 })
 
-// Save automation settings
+// Save automation qualified leads
 function saveAutomation() {
   const cleanedActions = manageForm.actions.map(a => {
     const base = { type: a.type, send_method: a.send_method }
@@ -92,12 +139,37 @@ function saveAutomation() {
       default:
         return base
     }
-  })
+  });
 
-  manageForm.transform(() => ({ actions: cleanedActions }))
+  manageForm.transform(() => ({ actions: cleanedActions, lead_type: 'qualified', }))
     .post(route('qualification-automation.store', { property: props.property.id }), {
       onSuccess: () => closeManageModal()
     })
+}
+
+
+  //Save automation for unqualified leads
+function saveUnqualifiedAutomation() {
+  const cleanedActions = manageUnqualifiedForm.actions.map(a => {
+    const base = { type: a.type, send_method: a.send_method }
+    switch (a.type) {
+      case "send_email":
+        return { ...base, template_id: a.template_id }
+      case "email_agent":
+        return { ...base, agent_email: a.agent_email }
+      case "schedule_visit":
+        return { ...base }
+      default:
+        return base
+    }
+  })
+manageUnqualifiedForm.transform(() => ({
+    actions: cleanedActions,
+    lead_type: 'unqualified',
+  }))
+  .post(route('qualification-automation.store', { property: props.property.id }), {
+    onSuccess: () => closeManageUnqualifiedModal()
+  })
 }
 
 // View Property
@@ -119,6 +191,7 @@ function saveQuestions()    { form.post(route('lead-questions.store')) }
 
 // Manage-automation modal state
 const isManageModalOpen = ref(false)
+const isManageUnqualifiedModalOpen = ref(false)
 
 // check if there is at least one email-type question
 const hasEmailQuestion = computed(() =>
@@ -129,8 +202,8 @@ function openManageModal() {
   // Clear current actions
   manageForm.actions = []
 
-  if (props.automationSettings.length) {
-    manageForm.actions = props.automationSettings.map(a => ({
+  if (props.qualifiedAutomationSettings.length) {
+    manageForm.actions = props.qualifiedAutomationSettings.map(a => ({
       type: a.action,
       template_id: a.template_id ?? "",
       agent_email: a.agent_email ?? page.props.auth.user.email,
@@ -158,6 +231,25 @@ const ruleForm = useForm({
   lead_question_id:  null,
   answer:            '',
 })
+
+function openManageUnqualifiedModal() {
+  // Clear current actions
+  manageUnqualifiedForm.actions = []
+
+  if (props.unqualifiedAutomationSettings.length) {
+    manageUnqualifiedForm.actions = props.unqualifiedAutomationSettings.map(a => ({
+      type: a.action,
+      template_id: a.template_id ?? "",
+      agent_email: a.agent_email ?? page.props.auth.user.email,
+      send_method: a.send_method ?? "immediate",
+    }))
+  } else {
+    // fallback: add a blank action
+    addUqAction()
+  }
+  isManageUnqualifiedModalOpen.value = true
+}
+function closeManageUnqualifiedModal(){ isManageUnqualifiedModalOpen.value = false }
 
 function openRuleDetail(q) {
   currentQuestion.value = q
@@ -228,6 +320,15 @@ function removeRule(leadQuestionId) {
               Manage the steps after a lead qualifies by setting up automations.
             </h2>
             <PrimaryButton @click="openManageModal" class="bg-blue-600 hover:bg-blue-700">
+              Manage
+            </PrimaryButton>
+          </div>
+
+          <div class="mb-6">
+            <h2 class="mb-4">
+              Manage the steps after a lead does not qualify by setting up automations.
+            </h2>
+            <PrimaryButton @click="openManageUnqualifiedModal" class="bg-blue-600 hover:bg-blue-700">
               Manage
             </PrimaryButton>
           </div>
@@ -427,6 +528,73 @@ function removeRule(leadQuestionId) {
         <div class="flex justify-end space-x-2">
           <PrimaryButton class="bg-gray-400 hover:bg-gray-500" @click="closeManageModal">Cancel</PrimaryButton>
           <PrimaryButton class="bg-teal-600 hover:bg-teal-700" @click="saveAutomation" :disabled="isSaveDisabled">Save</PrimaryButton>
+        </div>
+      </div>
+    </Modal>
+
+    <Modal :show="isManageUnqualifiedModalOpen" @close="closeManageUnqualifiedModal">
+      <div class="p-5">
+        <h3 class="mb-4 text-lg font-semibold">Configure Unqualified-Lead Automation</h3>
+
+        <!-- loop through actions -->
+        <div v-for="(action, idx) in manageUnqualifiedForm.actions" :key="idx" class="p-4 mb-4 border rounded bg-gray-50">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-md">Action {{ idx + 1 }}</h4>
+            <button type="button" class="text-sm text-red-600 hover:underline" @click="removeUqAction(idx)">Delete</button>
+          </div>
+
+          <!-- Action selector -->
+          <div>
+            <label class="block mb-1 text-sm font-medium text-gray-700">Action</label>
+            <select v-model="action.type" class="w-full p-2 border rounded">
+              <option disabled value="">-- select an action --</option>
+              <option value="send_email">Send Email</option>
+              <option value="email_agent">Email and Notify me</option>
+              <option value="schedule_visit">Send Site Visit Email</option>
+            </select>
+          </div>
+
+          <!-- Supporting fields -->
+          <div v-if="action.type === 'send_email'" class="mt-3">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Email Template</label>
+            <select v-model="action.template_id" class="w-full p-2 border rounded">
+              <option disabled value="">-- select a template --</option>
+              <option v-for="tmpl in props.emailTemplates" :key="tmpl.id" :value="tmpl.id">
+                {{ tmpl.name }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="action.type === 'email_agent'" class="mt-3">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Agent Email Address</label>
+            <input type="email" v-model="action.agent_email" class="w-full p-2 border rounded" placeholder="e.g. agent@example.com" />
+          </div>
+
+          <!-- Send method -->
+          <div class="mt-4">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Send Timing</label>
+            <div class="flex items-center space-x-4">
+              <label class="inline-flex items-center">
+                <input type="radio" value="immediate" v-model="action.send_method" class="form-radio" />
+                <span class="ml-2">Immediately after submission</span>
+              </label>
+              <label class="inline-flex items-center">
+                <input type="radio" value="manual" v-model="action.send_method" class="form-radio" />
+                <span class="ml-2">Manual send</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add action button -->
+        <div class="mb-6">
+          <PrimaryButton class="bg-blue-500 hover:bg-blue-600" @click="addUqAction">+ Add Action</PrimaryButton>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end space-x-2">
+          <PrimaryButton class="bg-gray-400 hover:bg-gray-500" @click="closeManageModal">Cancel</PrimaryButton>
+          <PrimaryButton class="bg-teal-600 hover:bg-teal-700" @click="saveUnqualifiedAutomation" :disabled="isUnqualifiedSaveDisabled">Save</PrimaryButton>
         </div>
       </div>
     </Modal>

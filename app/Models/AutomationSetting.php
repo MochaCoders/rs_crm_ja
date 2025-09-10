@@ -13,6 +13,7 @@ class AutomationSetting extends Model
             'template_id',
             'agent_email',
             'send_method',
+            'lead_type',
         ];
 
     /**

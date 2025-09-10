@@ -144,11 +144,11 @@ async function copyToClipboard() {
                 </p>
               </div>
               <div class="flex gap-2 pt-5">
+                <PrimaryButton class="!text-blue-700 bg-white hover:bg-white focus:bg-white" @click="goToView(property.id)">
+                  View/Edit
+                </PrimaryButton>
                 <PrimaryButton class="!text-blue-700 bg-white hover:bg-white focus:bg-white" @click="goToShare(property.id)">
                   Share Link
-                </PrimaryButton>
-                <PrimaryButton class="!text-blue-700 bg-white hover:bg-white focus:bg-white" @click="goToView(property.id)">
-                  View
                 </PrimaryButton>
                 <PrimaryButton class="text-white bg-red-700 hover:bg-red-500" @click="goToDelete(property.id)">
                   Delete
